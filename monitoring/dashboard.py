@@ -1,5 +1,6 @@
 """Streamlit dashboard: drift over time, registry state, and live canary performance."""
 
+import os
 import sys
 from pathlib import Path
 
@@ -14,7 +15,9 @@ from drift_detector import detect_drift  # noqa: E402
 from train import MLFLOW_TRACKING_URI, MODEL_NAME  # noqa: E402
 
 STREAM_DIR = Path(__file__).resolve().parent.parent / "data" / "stream"
-PREDICTIONS_LOG = Path(__file__).resolve().parent / "predictions_log.csv"
+PREDICTIONS_LOG = Path(
+    os.environ.get("PREDICTIONS_LOG_PATH", Path(__file__).resolve().parent / "predictions_log.csv")
+)
 
 st.set_page_config(page_title="Clinical MLOps Monitoring", layout="wide")
 st.title("Clinical Mortality Model — Monitoring")

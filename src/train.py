@@ -5,6 +5,7 @@ split would be noisy — cross-validation is used for the reported metrics, and
 the final artifact is refit on all data before being logged/registered.
 """
 
+import os
 from pathlib import Path
 
 import mlflow
@@ -18,7 +19,11 @@ from sklearn.preprocessing import OneHotEncoder
 
 from data import TARGET, build_features, split_train_holdout
 
-MLFLOW_TRACKING_URI = f"sqlite:///{Path(__file__).resolve().parent.parent / 'mlflow.db'}"
+# Overridable so containers (api, dashboard, airflow) can share one MLflow
+# store via a mounted volume instead of each getting an isolated local file.
+MLFLOW_TRACKING_URI = os.environ.get(
+    "MLFLOW_TRACKING_URI", f"sqlite:///{Path(__file__).resolve().parent.parent / 'mlflow.db'}"
+)
 EXPERIMENT_NAME = "clinical-mortality-risk"
 MODEL_NAME = "clinical-mortality-xgb"
 

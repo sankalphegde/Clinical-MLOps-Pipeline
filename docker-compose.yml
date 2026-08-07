@@ -1,0 +1,57 @@
+services:
+  mlflow:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.mlflow
+    ports:
+      - "5001:5000"
+    volumes:
+      - mlflow_data:/mlflow
+
+  api:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.api
+    ports:
+      - "8000:8000"
+    depends_on:
+      - mlflow
+    environment:
+      - PREDICTIONS_LOG_PATH=/logs/predictions_log.csv
+    volumes:
+      - mlflow_data:/mlflow
+      - predictions_log:/logs
+
+  dashboard:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.dashboard
+    ports:
+      - "8501:8501"
+    depends_on:
+      - mlflow
+    environment:
+      - PREDICTIONS_LOG_PATH=/logs/predictions_log.csv
+    volumes:
+      - mlflow_data:/mlflow
+      - predictions_log:/logs
+
+  airflow:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.airflow
+    ports:
+      - "8082:8080"
+    depends_on:
+      - mlflow
+    user: "0:0"
+    volumes:
+      - mlflow_data:/mlflow
+    command: >
+      bash -c "airflow db migrate && airflow users create --username admin --password admin
+      --firstname admin --lastname admin --role Admin --email admin@example.com || true &&
+      airflow standalone"
+
+volumes:
+  mlflow_data:
+  predictions_log:

@@ -1,0 +1,16 @@
+FROM apache/airflow:2.9.3-python3.12
+
+USER root
+COPY requirements.txt /tmp/requirements.txt
+USER airflow
+RUN pip install --no-cache-dir pandas scikit-learn xgboost==3.4.0 mlflow==3.15.1 evidently==0.7.21
+
+COPY --chown=airflow:root src/ /opt/airflow/project/src/
+COPY --chown=airflow:root monitoring/drift_detector.py /opt/airflow/project/monitoring/drift_detector.py
+COPY --chown=airflow:root dags/ /opt/airflow/dags/
+COPY --chown=airflow:root data/ /opt/airflow/project/data/
+
+ENV MLFLOW_TRACKING_URI=http://mlflow:5000
+ENV PYTHONPATH=/opt/airflow/project/src:/opt/airflow/project/monitoring
+ENV AIRFLOW__CORE__LOAD_EXAMPLES=False
+ENV AIRFLOW__CORE__EXECUTOR=SequentialExecutor

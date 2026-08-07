@@ -8,6 +8,7 @@ performance before finalize_canary() fully promotes it.
 """
 
 import csv
+import os
 import random
 import sys
 from datetime import datetime, timezone
@@ -22,7 +23,13 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 from train import CATEGORICAL, MLFLOW_TRACKING_URI, MODEL_NAME, NUMERIC  # noqa: E402
 
 CANARY_TRAFFIC_SHARE = 0.2
-PREDICTIONS_LOG = Path(__file__).resolve().parent.parent / "monitoring" / "predictions_log.csv"
+# Overridable so the api and dashboard containers can share one log via a mounted volume.
+PREDICTIONS_LOG = Path(
+    os.environ.get(
+        "PREDICTIONS_LOG_PATH",
+        Path(__file__).resolve().parent.parent / "monitoring" / "predictions_log.csv",
+    )
+)
 
 app = FastAPI(title="Clinical Mortality Risk Scoring")
 
