@@ -11,3 +11,4 @@ logs/
 .DS_Store
 models/*.joblib
 data/*.csv.gz
+.airflow_home/
