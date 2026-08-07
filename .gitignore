@@ -12,3 +12,4 @@ logs/
 models/*.joblib
 data/*.csv.gz
 .airflow_home/
+monitoring/predictions_log.csv
