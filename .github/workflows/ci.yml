@@ -1,0 +1,50 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  pipeline:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Data loading + feature engineering
+        working-directory: src
+        run: python data.py
+
+      - name: Train model + log to MLflow
+        working-directory: src
+        run: python train.py
+
+      - name: Simulate production stream
+        working-directory: src
+        run: python simulate_stream.py
+
+      - name: Drift detection across simulated batches
+        working-directory: monitoring
+        env:
+          PYTHONPATH: ../src
+        run: python drift_detector.py
+
+      - name: Drift-triggered retrain + promotion
+        working-directory: src
+        run: python retrain.py --batch batch_5.csv
+
+      - name: Build API image
+        run: docker build -f docker/Dockerfile.api -t clinical-api .
+
+      - name: Build dashboard image
+        run: docker build -f docker/Dockerfile.dashboard -t clinical-dashboard .
+
+      - name: Build mlflow image
+        run: docker build -f docker/Dockerfile.mlflow -t clinical-mlflow .
