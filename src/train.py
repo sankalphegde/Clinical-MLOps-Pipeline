@@ -16,7 +16,7 @@ from sklearn.model_selection import StratifiedKFold, cross_val_predict
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import OneHotEncoder
 
-from data import TARGET, build_features
+from data import TARGET, build_features, split_train_holdout
 
 MLFLOW_TRACKING_URI = f"sqlite:///{Path(__file__).resolve().parent.parent / 'mlflow.db'}"
 EXPERIMENT_NAME = "clinical-mortality-risk"
@@ -45,7 +45,9 @@ def build_pipeline(scale_pos_weight: float):
 
 
 def train(df: pd.DataFrame | None = None):
-    df = df if df is not None else build_features()
+    """Train on `df` if given, else on the training pool (holdout excluded)."""
+    if df is None:
+        df, _holdout = split_train_holdout(build_features())
     X, y = df[CATEGORICAL + NUMERIC], df[TARGET]
 
     scale_pos_weight = (y == 0).sum() / (y == 1).sum()

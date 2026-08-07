@@ -59,6 +59,20 @@ def build_features(tables: dict[str, pd.DataFrame] | None = None) -> pd.DataFram
     return df
 
 
+def split_train_holdout(df: pd.DataFrame, holdout_frac: float = 0.2, seed: int = 42):
+    """Fixed stratified holdout, carved out once and never trained on again.
+
+    Used exclusively for champion/challenger evaluation during retraining, so
+    the comparison isn't contaminated by data the challenger was trained on.
+    """
+    from sklearn.model_selection import train_test_split
+
+    train_df, holdout_df = train_test_split(
+        df, test_size=holdout_frac, stratify=df[TARGET], random_state=seed
+    )
+    return train_df.reset_index(drop=True), holdout_df.reset_index(drop=True)
+
+
 if __name__ == "__main__":
     features = build_features()
     print(features.shape)
