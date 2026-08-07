@@ -80,5 +80,17 @@ def train(df: pd.DataFrame | None = None):
     return pipeline, {"roc_auc": roc_auc, "pr_auc": pr_auc, "run_id": run_id}
 
 
+def bootstrap_champion():
+    """Train the first model and alias it as champion directly (nothing to canary against yet)."""
+    from mlflow import MlflowClient
+
+    _pipeline, metrics = train()
+    client = MlflowClient(tracking_uri=MLFLOW_TRACKING_URI)
+    versions = client.search_model_versions(f"name='{MODEL_NAME}'")
+    version = next(v for v in versions if v.run_id == metrics["run_id"])
+    client.set_registered_model_alias(MODEL_NAME, "champion", version.version)
+    print(f"Aliased version {version.version} as champion")
+
+
 if __name__ == "__main__":
-    train()
+    bootstrap_champion()

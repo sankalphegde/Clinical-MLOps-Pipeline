@@ -21,6 +21,7 @@ from drift_detector import detect_drift  # noqa: E402
 from train import CATEGORICAL, MLFLOW_TRACKING_URI, MODEL_NAME, NUMERIC, train  # noqa: E402
 
 CHAMPION_ALIAS = "champion"
+CHALLENGER_ALIAS = "challenger"
 STREAM_DIR = Path(__file__).resolve().parent.parent / "data" / "stream"
 
 
@@ -64,6 +65,15 @@ def _holdout_auc(run_id: str) -> float:
 
 
 def promote_if_better(challenger_run_id: str) -> dict:
+    """Evaluate a newly retrained model against the current champion.
+
+    If there's no champion yet, the new model becomes champion outright
+    (nothing to canary against). Otherwise, if it beats the champion on the
+    holdout, it's staged as the *challenger* — it starts serving a minority of
+    live traffic (see api/serve.py) rather than immediately replacing the
+    champion. finalize_canary() promotes it fully once its live performance
+    has been reviewed.
+    """
     client = _client()
     challenger_auc = _holdout_auc(challenger_run_id)
 
@@ -76,17 +86,34 @@ def promote_if_better(challenger_run_id: str) -> dict:
     except Exception:
         champion, champion_auc = None, -1.0
 
-    promoted = challenger_auc >= champion_auc
-    if promoted:
+    better = challenger_auc >= champion_auc
+
+    if champion is None:
         client.set_registered_model_alias(MODEL_NAME, CHAMPION_ALIAS, challenger_version.version)
+        stage = "champion (no prior champion — bootstrapped directly)"
+    elif better:
+        client.set_registered_model_alias(MODEL_NAME, CHALLENGER_ALIAS, challenger_version.version)
+        stage = "challenger (staged for canary rollout)"
+    else:
+        stage = "rejected (did not beat current champion)"
 
     return {
         "challenger_version": challenger_version.version,
         "challenger_auc": challenger_auc,
         "champion_version": champion.version if champion else None,
         "champion_auc": champion_auc,
-        "promoted": promoted,
+        "promoted": better,
+        "stage": stage,
     }
+
+
+def finalize_canary() -> dict:
+    """Promote the current challenger to champion, ending the canary period."""
+    client = _client()
+    challenger = client.get_model_version_by_alias(MODEL_NAME, CHALLENGER_ALIAS)
+    client.set_registered_model_alias(MODEL_NAME, CHAMPION_ALIAS, challenger.version)
+    client.delete_registered_model_alias(MODEL_NAME, CHALLENGER_ALIAS)
+    return {"new_champion_version": challenger.version}
 
 
 if __name__ == "__main__":
